@@ -1,0 +1,18 @@
+
+# Node & Frontend
+node_modules/
+.next/
+frontend/.env.local
+
+# Python & Backend
+venv/
+__pycache__/
+backend/.env
+*.pyc
+screenshot_*.png
+
+# OS Files
+.DS_Store
+
+#secret file
+.env*

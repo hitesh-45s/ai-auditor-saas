@@ -1,0 +1,6 @@
+# Root-level secrets
+.env
+
+# System files
+.DS_Store
+Thumbs.db
