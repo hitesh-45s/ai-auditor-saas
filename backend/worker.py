@@ -313,7 +313,7 @@ def process_queue():
                                 groq_prompt = f"""You are an expert Enterprise Web Auditor. Analyze this website data and return ONLY a JSON object (no markdown, no explanation) matching this schema exactly:
 {{"global_score": <integer 20-100>, "executive_summary": "<string>", "top_global_issue": "<string>", "critical_vulnerabilities": [{{"id": "vuln-1", "url": "<url>", "issue_type": "<Accessibility|Code Error|Hydration|Performance|SEO>", "severity": "<High|Medium|Low>", "file_target": "<path>", "description": "<description>", "remediation_code": "<fix snippet>"}}]}}
 
-Scoring: Start at 100. Subtract 10 per High, 4 per Medium, 1 per Low. Min score 20. Report 4-8 distinct issues only.
+Scoring: Start at 100. Subtract 7 per High, 3 per Medium, 1 per Low. Min score 20. Report 4-8 distinct issues only.
 
 Website Data:
 {aggregated_website_data[:40000]}"""

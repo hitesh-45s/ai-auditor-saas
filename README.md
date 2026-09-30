@@ -212,8 +212,8 @@ To prevent false deductions on enterprise sites (such as Stripe or Vercel), defe
 
 | Severity | Deduction | Qualification |
 |---|---|---|
-| 🔴 **High** | **-10 pts** | Critical functional blockers (broken auth/forms, major missing keyboard navigation, severe WCAG Level A/AA failures) |
-| 🟡 **Medium** | **-4 pts** | Minor accessibility flaws, hydration warnings, missing descriptive image attributes, suboptimal layout shifts |
+| 🔴 **High** | **-7 pts** | Critical functional blockers (broken auth/forms, major missing keyboard navigation, severe WCAG Level A/AA failures) |
+| 🟡 **Medium** | **-3 pts** | Minor accessibility flaws, hydration warnings, missing descriptive image attributes, suboptimal layout shifts |
 | 🔵 **Low** | **-1 pt** | Minor code hygiene, missing non-critical meta tags, heading order preference |
 
 *Starting Score: **100** · Floor Minimum: **20***
