@@ -4,6 +4,7 @@ Handles incoming scan requests and queues them in Redis.
 Includes CORS Middleware, JWT Authentication, and Rate Limiting.
 """
 import os
+from datetime import datetime, timezone
 from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -110,9 +111,11 @@ async def request_scan(request: Request, payload: ScanRequest, user_id: str = De
             }).execute()
             website_id = new_website.data[0]['id']
 
+        now_iso = datetime.now(timezone.utc).isoformat()
         new_scan = supabase.table("scans").insert({
             "website_id": website_id,
-            "status": "pending"
+            "status": "pending",
+            "started_at": now_iso
         }).execute()
 
         scan_id = new_scan.data[0]['id']
@@ -135,6 +138,60 @@ async def request_scan(request: Request, payload: ScanRequest, user_id: str = De
         raise HTTPException(
             status_code=500, detail=f"Failed to process scan: {str(e)}"
         ) from e
+
+
+@app.get("/api/scans")
+async def list_user_scans(user_id: str = Depends(verify_user)):
+    """Retrieves all past scan records ordered from most recent to oldest."""
+    try:
+        websites_resp = supabase.table("websites").select("id, domain_url").eq("user_id", user_id).execute()
+        if not websites_resp.data:
+            return []
+
+        website_map = {w["id"]: w["domain_url"] for w in websites_resp.data}
+        website_ids = list(website_map.keys())
+
+        scans_resp = supabase.table("scans")\
+            .select("id, website_id, status, started_at, completed_at, audit_results(raw_data, created_at)")\
+            .in_("website_id", website_ids)\
+            .execute()
+
+        scans_list = []
+        for scan in scans_resp.data:
+            audit_records = scan.get("audit_results") or []
+            first_audit = audit_records[0] if audit_records else {}
+            raw_data = first_audit.get("raw_data") if isinstance(first_audit, dict) else {}
+            score = raw_data.get("global_score") if isinstance(raw_data, dict) else None
+            vulns = raw_data.get("critical_vulnerabilities") if isinstance(raw_data, dict) else []
+
+            # Reliable timestamp prioritization: audit creation -> completed_at -> started_at
+            timestamp = (
+                first_audit.get("created_at")
+                or scan.get("completed_at")
+                or scan.get("started_at")
+                or ""
+            )
+
+            scans_list.append({
+                "id": scan["id"],
+                "website_id": scan["website_id"],
+                "domain_url": website_map.get(scan["website_id"], "Unknown"),
+                "status": scan["status"],
+                "started_at": scan.get("started_at"),
+                "completed_at": scan.get("completed_at"),
+                "created_at": timestamp,
+                "global_score": score,
+                "vulnerability_count": len(vulns) if isinstance(vulns, list) else 0,
+                "top_issue": raw_data.get("top_global_issue") if isinstance(raw_data, dict) else None,
+            })
+
+        # Sort strictly from newest (most recent) to oldest
+        scans_list.sort(key=lambda s: s.get("created_at") or s.get("id") or "", reverse=True)
+
+        return scans_list
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch scan history: {str(e)}") from e
 
 
 @app.get("/api/scans/{scan_id}")

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { Search, Activity, Globe, Terminal, AlertTriangle, Code2, Loader2, ArrowRight, Bug, Link as LinkIcon, ShieldCheck, LogOut, BookOpen, Home as HomeIcon, Lock, Mail, CheckCircle2 } from "lucide-react";
+import { Search, Activity, Globe, Terminal, AlertTriangle, Code2, Loader2, ArrowRight, Bug, Link as LinkIcon, ShieldCheck, LogOut, BookOpen, Home as HomeIcon, Lock, Mail, CheckCircle2, History, Download, ExternalLink, RefreshCw, Zap, Gauge, Timer, HardDrive } from "lucide-react";
 
 // --- SUPABASE INITIALIZATION ---
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
@@ -21,6 +21,17 @@ type Vulnerability = {
   file_target?: string;
   description: string;
   remediation_code?: string;
+  screenshot_url?: string;
+};
+
+type PerformanceMetrics = {
+  load_time_ms: number;
+  fcp_ms?: number | null;
+  dom_content_loaded_ms: number;
+  ttfb_ms: number;
+  total_requests: number;
+  transfer_size_kb: number;
+  speed_rating: "Fast" | "Average" | "Slow";
 };
 
 type AuditResult = {
@@ -29,12 +40,26 @@ type AuditResult = {
   top_global_issue: string;
   critical_vulnerabilities?: Vulnerability[];
   scanned_urls?: string[];
+  performance_metrics?: PerformanceMetrics;
+};
+
+type ScanHistoryItem = {
+  id: string;
+  website_id: string;
+  domain_url: string;
+  status: string;
+  started_at?: string;
+  completed_at?: string;
+  created_at?: string;
+  global_score?: number | null;
+  vulnerability_count: number;
+  top_issue?: string | null;
 };
 
 export default function App() {
   // --- GLOBAL STATE ---
   const [session, setSession] = useState<any>(null);
-  const [currentView, setCurrentView] = useState<"login" | "home" | "scanner" | "fixes">("login");
+  const [currentView, setCurrentView] = useState<"login" | "home" | "scanner" | "history" | "fixes">("login");
   const [mounted, setMounted] = useState(false);
 
   // --- AUTH STATE ---
@@ -52,6 +77,11 @@ export default function App() {
   const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null); // NEW: Screenshot state
   const [scanError, setScanError] = useState<string | null>(null);
   
+  // --- SCAN HISTORY STATE ---
+  const [scanHistory, setScanHistory] = useState<ScanHistoryItem[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+
   // --- REMEDIATION LAB STATE ---
   const [selectedVulnIndex, setSelectedVulnIndex] = useState(0);
 
@@ -212,6 +242,64 @@ export default function App() {
     setCurrentView("scanner");
   };
 
+  // --- SCAN HISTORY METHODS ---
+  const fetchScanHistory = async () => {
+    if (!session?.access_token) return;
+    setHistoryLoading(true);
+    setHistoryError(null);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/scans`, {
+        headers: {
+          "Authorization": `Bearer ${session.access_token}`
+        }
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const data = await response.json();
+      setScanHistory(data);
+    } catch (err: any) {
+      console.error("Failed to load history:", err);
+      setHistoryError(err.message || "Failed to load scan history.");
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const openHistoricalScan = async (selectedScanId: string) => {
+    setIsScanning(true);
+    setScanId(selectedScanId);
+    setScanStatus("loading");
+    setAuditData(null);
+    setScanError(null);
+    setScreenshotUrl(null);
+    setCurrentView("scanner");
+    setSelectedVulnIndex(0);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/scans/${selectedScanId}`, {
+        headers: {
+          "Authorization": `Bearer ${session.access_token}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setScanStatus(data.status);
+        if (data.screenshot_url) setScreenshotUrl(data.screenshot_url);
+        if (data.audit_results && data.audit_results.length > 0) {
+          setAuditData(data.audit_results[0].raw_data);
+        }
+      } else {
+        setScanError(`Failed to load historical scan (HTTP ${response.status})`);
+      }
+    } catch (err: any) {
+      console.error(err);
+      setScanError(`Error loading historical scan: ${err.message}`);
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
   if (!mounted) return null;
 
   // ==========================================
@@ -321,6 +409,13 @@ export default function App() {
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${currentView === 'scanner' ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'}`}
           >
             <Search className="w-5 h-5" /> Target Scanner
+          </button>
+
+          <button 
+            onClick={() => { setCurrentView("history"); fetchScanHistory(); }}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${currentView === 'history' ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'}`}
+          >
+            <History className="w-5 h-5" /> Scan History
           </button>
 
           <button 
@@ -493,17 +588,27 @@ export default function App() {
               {auditData && (
                 <div className="w-full">
                   
-                  {/* DASHBOARD HEADER & RESET BUTTON */}
-                  <div className="flex items-center justify-between mb-8">
+                  {/* DASHBOARD HEADER & ACTIONS */}
+                  <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
                     <h2 className="text-2xl font-bold text-white flex items-center gap-2">
                       <Activity className="w-6 h-6 text-indigo-400" /> Audit Complete
                     </h2>
-                    <button 
-                      onClick={startNewScan}
-                      className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg font-medium transition-colors text-sm flex items-center gap-2 border border-white/5"
-                    >
-                      <Search className="w-4 h-4" /> Run New Scan
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <button 
+                        type="button"
+                        onClick={() => window.print()}
+                        className="bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 px-4 py-2 rounded-lg font-medium transition-all text-sm flex items-center gap-2"
+                        title="Save report as PDF"
+                      >
+                        <Download className="w-4 h-4 text-indigo-400" /> Export PDF
+                      </button>
+                      <button 
+                        onClick={startNewScan}
+                        className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg font-medium transition-colors text-sm flex items-center gap-2 border border-white/5"
+                      >
+                        <Search className="w-4 h-4" /> Run New Scan
+                      </button>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -517,13 +622,6 @@ export default function App() {
                       }`}>
                         <span className="text-5xl font-black">{auditData.global_score}</span>
                       </div>
-
-                      {/* NEW: Display the screenshot behind the score or below it! */}
-                      {screenshotUrl && (
-                          <div className="w-full mt-4 rounded-xl overflow-hidden border border-white/10 shadow-[0_0_15px_rgba(255,255,255,0.05)] relative z-10">
-                              <img src={screenshotUrl} alt="Target Website" className="w-full object-cover transition-transform hover:scale-105 duration-700" />
-                          </div>
-                      )}
                     </div>
 
                     {/* SUMMARY */}
@@ -542,6 +640,81 @@ export default function App() {
                       </div>
                     </div>
 
+                    {/* CORE WEB VITALS & REAL PERFORMANCE GAUGES */}
+                    {auditData.performance_metrics && (
+                      <div className="col-span-1 md:col-span-3 bg-[#0a0a0a]/80 backdrop-blur-xl border border-white/10 rounded-3xl p-8">
+                        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+                          <div>
+                            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                              <Zap className="w-5 h-5 text-amber-400" /> Real Core Web Vitals & Speed Diagnostics
+                            </h3>
+                            <p className="text-slate-400 text-xs mt-1">
+                              Forensic browser navigation timings measured directly via Playwright Chromium.
+                            </p>
+                          </div>
+                          <span
+                            className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${
+                              auditData.performance_metrics.speed_rating === "Fast"
+                                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                : auditData.performance_metrics.speed_rating === "Average"
+                                ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"
+                                : "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                            }`}
+                          >
+                            {auditData.performance_metrics.speed_rating} Speed
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                          {/* Load Time */}
+                          <div className="bg-[#111] border border-white/5 rounded-2xl p-4 flex flex-col">
+                            <span className="text-[11px] font-mono text-slate-500 uppercase flex items-center gap-1.5 mb-1">
+                              <Timer className="w-3.5 h-3.5 text-indigo-400" /> Full Load
+                            </span>
+                            <span className="text-2xl font-black text-white">
+                              {auditData.performance_metrics.load_time_ms}
+                              <span className="text-xs font-normal text-slate-500 ml-1">ms</span>
+                            </span>
+                          </div>
+
+                          {/* FCP */}
+                          <div className="bg-[#111] border border-white/5 rounded-2xl p-4 flex flex-col">
+                            <span className="text-[11px] font-mono text-slate-500 uppercase flex items-center gap-1.5 mb-1">
+                              <Gauge className="w-3.5 h-3.5 text-emerald-400" /> First Contentful (FCP)
+                            </span>
+                            <span className="text-2xl font-black text-white">
+                              {auditData.performance_metrics.fcp_ms !== null && auditData.performance_metrics.fcp_ms !== undefined
+                                ? auditData.performance_metrics.fcp_ms
+                                : "—"}
+                              <span className="text-xs font-normal text-slate-500 ml-1">ms</span>
+                            </span>
+                          </div>
+
+                          {/* TTFB */}
+                          <div className="bg-[#111] border border-white/5 rounded-2xl p-4 flex flex-col">
+                            <span className="text-[11px] font-mono text-slate-500 uppercase flex items-center gap-1.5 mb-1">
+                              <Activity className="w-3.5 h-3.5 text-yellow-400" /> TTFB (Latency)
+                            </span>
+                            <span className="text-2xl font-black text-white">
+                              {auditData.performance_metrics.ttfb_ms}
+                              <span className="text-xs font-normal text-slate-500 ml-1">ms</span>
+                            </span>
+                          </div>
+
+                          {/* Page Weight */}
+                          <div className="bg-[#111] border border-white/5 rounded-2xl p-4 flex flex-col">
+                            <span className="text-[11px] font-mono text-slate-500 uppercase flex items-center gap-1.5 mb-1">
+                              <HardDrive className="w-3.5 h-3.5 text-purple-400" /> Page Weight
+                            </span>
+                            <span className="text-2xl font-black text-white">
+                              {auditData.performance_metrics.transfer_size_kb}
+                              <span className="text-xs font-normal text-slate-500 ml-1">KB</span>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {/* VULNERABILITY MATRIX */}
                     {auditData.critical_vulnerabilities && auditData.critical_vulnerabilities.length > 0 && (
                       <div className="col-span-1 md:col-span-3 mt-4">
@@ -549,7 +722,7 @@ export default function App() {
                           <Bug className="w-6 h-6 text-rose-400" /> Vulnerability Matrix
                         </h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {auditData.critical_vulnerabilities.map((vuln, idx) => (
+                            {auditData.critical_vulnerabilities.map((vuln, idx) => (
                             <div key={idx} className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-6 flex flex-col">
                               <div className="flex justify-between items-start gap-4 mb-3">
                                 <span className="font-mono text-xs text-indigo-300 break-all bg-indigo-500/10 px-2 py-1 rounded border border-indigo-500/20">{vuln.url}</span>
@@ -563,6 +736,11 @@ export default function App() {
                               </div>
                               <h4 className="text-white font-semibold mb-2">{vuln.issue_type}</h4>
                               <p className="text-slate-400 text-sm leading-relaxed">{vuln.description}</p>
+                              {vuln.screenshot_url && (
+                                <div className="mt-4 rounded-xl overflow-hidden border border-white/10 shadow-[0_0_15px_rgba(255,255,255,0.05)]">
+                                  <img src={vuln.screenshot_url} alt={`Screenshot of issue on ${vuln.url}`} className="w-full object-cover transition-transform hover:scale-105 duration-700" />
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -585,6 +763,180 @@ export default function App() {
                         </div>
                       </div>
                     )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ========================================== */}
+          {/* PAGE: SCAN HISTORY & PORTFOLIO */}
+          {/* ========================================== */}
+          {currentView === "history" && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 w-full max-w-5xl mx-auto">
+              <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+                <div>
+                  <h2 className="text-3xl font-bold text-white flex items-center gap-3">
+                    <History className="w-8 h-8 text-indigo-400" />
+                    Audit Portfolio & Scan History
+                  </h2>
+                  <p className="text-slate-400 mt-1 text-sm">
+                    Review and compare past enterprise audits across all monitored domains.
+                  </p>
+                </div>
+                <button
+                  onClick={fetchScanHistory}
+                  disabled={historyLoading}
+                  className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg font-medium transition-colors text-sm flex items-center gap-2 border border-white/5 disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-4 h-4 ${historyLoading ? "animate-spin" : ""}`} />
+                  Refresh
+                </button>
+              </div>
+
+              {/* STATS OVERVIEW */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+                <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-5">
+                  <span className="text-xs font-mono uppercase tracking-wider text-slate-500">Total Audits</span>
+                  <div className="text-3xl font-black text-white mt-1">{scanHistory.length}</div>
+                </div>
+                <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-5">
+                  <span className="text-xs font-mono uppercase tracking-wider text-slate-500">Average AI Score</span>
+                  <div className="text-3xl font-black text-indigo-400 mt-1">
+                    {scanHistory.filter((s) => typeof s.global_score === "number").length > 0
+                      ? Math.round(
+                          scanHistory
+                            .filter((s) => typeof s.global_score === "number")
+                            .reduce((acc, curr) => acc + (curr.global_score || 0), 0) /
+                            scanHistory.filter((s) => typeof s.global_score === "number").length
+                        )
+                      : "—"}
+                  </div>
+                </div>
+                <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-5">
+                  <span className="text-xs font-mono uppercase tracking-wider text-slate-500">Monitored Domains</span>
+                  <div className="text-3xl font-black text-emerald-400 mt-1">
+                    {new Set(scanHistory.map((s) => s.domain_url)).size}
+                  </div>
+                </div>
+              </div>
+
+              {historyLoading && scanHistory.length === 0 && (
+                <div className="flex flex-col items-center justify-center p-16 text-slate-500 gap-3">
+                  <Loader2 className="w-8 h-8 animate-spin text-indigo-400" />
+                  <p className="font-mono text-sm">Fetching audit records from Supabase...</p>
+                </div>
+              )}
+
+              {historyError && (
+                <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm p-4 rounded-xl flex items-center gap-3 mb-6">
+                  <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+                  <p>{historyError}</p>
+                </div>
+              )}
+
+              {!historyLoading && scanHistory.length === 0 && (
+                <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-12 text-center">
+                  <Globe className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+                  <h3 className="text-lg font-bold text-white mb-2">No audits recorded yet</h3>
+                  <p className="text-slate-400 text-sm mb-6">Initiate your first deep web audit to start building your portfolio.</p>
+                  <button
+                    onClick={() => setCurrentView("scanner")}
+                    className="bg-white text-black px-6 py-2.5 rounded-xl font-bold hover:bg-slate-200 transition-colors text-sm"
+                  >
+                    Go to Scanner
+                  </button>
+                </div>
+              )}
+
+              {scanHistory.length > 0 && (
+                <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead className="bg-white/5 border-b border-white/10 text-slate-400 font-mono text-xs uppercase tracking-wider">
+                        <tr>
+                          <th className="py-4 px-6">Domain / Target</th>
+                          <th className="py-4 px-6">Status</th>
+                          <th className="py-4 px-6">AI Score</th>
+                          <th className="py-4 px-6">Vulnerabilities</th>
+                          <th className="py-4 px-6">Audited On</th>
+                          <th className="py-4 px-6 text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5 text-slate-300">
+                        {scanHistory
+                          .slice()
+                          .sort((a, b) => {
+                            const timeA = new Date(a.created_at || a.completed_at || a.started_at || 0).getTime();
+                            const timeB = new Date(b.created_at || b.completed_at || b.started_at || 0).getTime();
+                            return timeB - timeA;
+                          })
+                          .map((scan) => (
+                          <tr key={scan.id} className="hover:bg-white/[0.02] transition-colors">
+                            <td className="py-4 px-6 font-mono font-medium text-white flex items-center gap-2">
+                              <Globe className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+                              <span className="truncate max-w-[260px]">{scan.domain_url}</span>
+                            </td>
+                            <td className="py-4 px-6">
+                              <span
+                                className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${
+                                  scan.status === "completed"
+                                    ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                                    : scan.status === "failed"
+                                    ? "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                                    : "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 animate-pulse"
+                                }`}
+                              >
+                                {scan.status}
+                              </span>
+                            </td>
+                            <td className="py-4 px-6">
+                              {typeof scan.global_score === "number" ? (
+                                <span
+                                  className={`font-black text-base ${
+                                    scan.global_score >= 80
+                                      ? "text-emerald-400"
+                                      : scan.global_score >= 50
+                                      ? "text-yellow-400"
+                                      : "text-rose-400"
+                                  }`}
+                                >
+                                  {scan.global_score}/100
+                                </span>
+                              ) : (
+                                <span className="text-slate-600">—</span>
+                              )}
+                            </td>
+                            <td className="py-4 px-6">
+                              <span className="font-mono text-xs text-slate-400">
+                                {scan.vulnerability_count} issues
+                              </span>
+                            </td>
+                            <td className="py-4 px-6 text-xs text-slate-400 font-mono">
+                              {scan.created_at || scan.completed_at || scan.started_at ? (
+                                new Date(scan.created_at || scan.completed_at || scan.started_at || "").toLocaleDateString(undefined, {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })
+                              ) : (
+                                "Recent"
+                              )}
+                            </td>
+                            <td className="py-4 px-6 text-right">
+                              <button
+                                onClick={() => openHistoricalScan(scan.id)}
+                                className="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors inline-flex items-center gap-1.5 border border-white/5 hover:border-white/20"
+                              >
+                                View Report <ExternalLink className="w-3 h-3" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               )}
