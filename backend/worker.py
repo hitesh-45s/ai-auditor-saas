@@ -253,8 +253,8 @@ def process_queue():
                 4. For each "Low" severity vulnerability in your list, subtract 1 point.
                 5. IMPORTANT: Deduct points ONCE per vulnerability entry in your reported list. Never multiply deductions by the number of crawled pages.
                 6. Minimum possible score is 20.
-                Example: A report with 0 High, 2 Medium (-8), and 3 Low (-3) MUST receive a score of 89.
-                Example: A report with 1 High (-10), 1 Medium (-4), and 2 Low (-2) MUST receive a score of 84.
+                Example: A report with 0 High, 2 Medium (-6), and 3 Low (-3) MUST receive a score of 91.
+                Example: A report with 1 High (-7), 1 Medium (-3), and 2 Low (-2) MUST receive a score of 88.
 
                 Analyze the entire structure and content, and return a strict JSON dictionary matching this exact structure (no markdown wrappers):
                 {{
