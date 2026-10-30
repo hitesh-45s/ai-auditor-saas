@@ -461,29 +461,17 @@ def standardize_vulnerability(v):
         impact = "+10 Accessibility Points · Resolves Screen Reader Blocker"
         explanation = "Interactive input controls without associated <label> elements or aria-label attributes prevent screen readers from announcing what information is required."
         defect_code = '<input type="text" name="query" placeholder="Search..." />'
-        remediation_code = (
-            '<div className="relative flex items-center">
-'
-            '  <label htmlFor="search-input" className="sr-only">Search site content</label>
-'
-            '  <input
-'
-            '    id="search-input"
-'
-            '    type="search"
-'
-            '    name="query"
-'
-            '    aria-label="Search site content"
-'
-            '    placeholder="Search site content..."
-'
-            '    className="px-4 py-2 rounded-xl border border-white/10"
-'
-            '  />
-'
-            '</div>'
-        )
+        remediation_code = """<div className="relative flex items-center">
+  <label htmlFor="search-input" className="sr-only">Search site content</label>
+  <input
+    id="search-input"
+    type="search"
+    name="query"
+    aria-label="Search site content"
+    placeholder="Search site content..."
+    className="px-4 py-2 rounded-xl border border-white/10"
+  />
+</div>"""
 
     elif any(k in desc for k in ["injection", "xss", "cross-site", "plaintext", "sql injection", "vulnerability"]):
         rule_id = "sec_injection_risk"
@@ -493,18 +481,12 @@ def standardize_vulnerability(v):
         impact = "+10 Security Points · Eliminates Client Injection Vulnerability"
         explanation = "Rendering unsanitized user or URL parameters directly into the DOM exposes client browsers to arbitrary JavaScript execution via Cross-Site Scripting (XSS)."
         defect_code = '<div dangerouslySetInnerHTML={{ __html: userProvidedInput }} />'
-        remediation_code = (
-            'import DOMPurify from "isomorphic-dompurify";
+        remediation_code = """import DOMPurify from "isomorphic-dompurify";
 
-'
-            '// FIX: Sanitize untrusted input before rendering HTML, or prefer safe text nodes
-'
-            '<div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(userProvidedInput) }} />
-'
-            '// Alternative safe text node:
-'
-            '// <div className="text-content">{userProvidedInput}</div>'
-        )
+// FIX: Sanitize untrusted input before rendering HTML, or prefer safe text nodes
+<div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(userProvidedInput) }} />
+// Alternative safe text node:
+// <div className="text-content">{userProvidedInput}</div>"""
 
     elif any(k in desc for k in ["corrupt", "malformed", "syntax", "parsing error", "<button <span", "broken dom"]):
         rule_id = "code_malformed_html"
@@ -514,13 +496,9 @@ def standardize_vulnerability(v):
         impact = "+5 Code Quality Points · Prevents Browser Parsing Recovery"
         explanation = "Malformed HTML tags or unclosed angle brackets cause browsers to enter quirks-mode rendering and risk hydration mismatches in modern React/Next.js applications."
         defect_code = '<button <span className="btn-text">Submit</span></button>'
-        remediation_code = (
-            '<button type="button" className="btn-primary px-4 py-2 rounded-lg font-bold">
-'
-            '  <span className="btn-text">Submit</span>
-'
-            '</button>'
-        )
+        remediation_code = """<button type="button" className="btn-primary px-4 py-2 rounded-lg font-bold">
+  <span className="btn-text">Submit</span>
+</button>"""
 
     # 2. MEDIUM DEFECTS (-5 pts)
     elif any(k in desc for k in ["alt attribute", "alt text", "missing 'alt'", "missing descriptive 'alt'", "img", "image"]):
@@ -531,19 +509,12 @@ def standardize_vulnerability(v):
         impact = "+5 to +8 Accessibility Points · Enables Screen Reader VoiceOver"
         explanation = "Images missing an 'alt' attribute cannot be interpreted by visually impaired users employing screen readers (NVDA, JAWS, VoiceOver). Always provide descriptive text or alt=\"\" if purely decorative."
         defect_code = '<img src="/images/banner.jpg" className="w-full h-auto" />'
-        remediation_code = (
-            '<img 
-'
-            '  src="/images/banner.jpg" 
-'
-            '  alt="University central campus and student collaboration courtyard" 
-'
-            '  loading="lazy" 
-'
-            '  className="w-full h-auto rounded-xl" 
-'
-            '/>'
-        )
+        remediation_code = """<img 
+  src="/images/banner.jpg" 
+  alt="University central campus and student collaboration courtyard" 
+  loading="lazy" 
+  className="w-full h-auto rounded-xl" 
+/>"""
 
     elif any(k in desc for k in ["empty <h", "empty heading", "<h1></h1>", "<h2></h2>", "<h3></h3>", "phantom heading", "empty <h1>", "empty <h2>", "empty <h3>", "heading"]):
         rule_id = "a11y_heading_order"
@@ -553,19 +524,12 @@ def standardize_vulnerability(v):
         impact = "+5 Accessibility Points · Fixes Structural Document Outline"
         explanation = "Empty heading tags create phantom outline nodes in assistive technology document trees, confusing screen reader navigation."
         defect_code = '<h2 className="title-section"></h2>'
-        remediation_code = (
-            '{/* Remove empty heading or conditionally render when title string exists */}
-'
-            '{sectionTitle && (
-'
-            '  <h2 className="title-section text-xl font-bold text-white">
-'
-            '    {sectionTitle}
-'
-            '  </h2>
-'
-            ')}'
-        )
+        remediation_code = """{/* Remove empty heading or conditionally render when title string exists */}
+{sectionTitle && (
+  <h2 className="title-section text-xl font-bold text-white">
+    {sectionTitle}
+  </h2>
+)}"""
 
     elif any(k in desc for k in ["accessible name", "font-scaling", "text size", "aria-label", "button name", "modal close"]):
         rule_id = "a11y_button_names"
@@ -575,25 +539,15 @@ def standardize_vulnerability(v):
         impact = "+5 Accessibility Points · Guarantees Interactive Name Resolution"
         explanation = "Buttons that only contain an icon (SVG) have no accessible name. Assistive tools announce them as 'unlabeled button' without indicating what action will occur."
         defect_code = '<button onClick={onClose}><svg className="w-5 h-5">...</svg></button>'
-        remediation_code = (
-            '<button 
-'
-            '  type="button" 
-'
-            '  onClick={onClose} 
-'
-            '  aria-label="Close dialog window" 
-'
-            '  className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-'
-            '>
-'
-            '  <svg className="w-5 h-5" aria-hidden="true">...</svg>
-'
-            '  <span className="sr-only">Close dialog window</span>
-'
-            '</button>'
-        )
+        remediation_code = """<button 
+  type="button" 
+  onClick={onClose} 
+  aria-label="Close dialog window" 
+  className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+>
+  <svg className="w-5 h-5" aria-hidden="true">...</svg>
+  <span className="sr-only">Close dialog window</span>
+</button>"""
 
     elif "hydration" in desc or "hydration" in itype:
         rule_id = "code_hydration_error"
@@ -603,23 +557,15 @@ def standardize_vulnerability(v):
         impact = "+5 Stability Points · Prevents Client DOM Desynchronization"
         explanation = "Accessing client-dependent APIs (like window.localStorage, navigator, or Date.now()) during server rendering causes the server HTML to conflict with client hydration."
         defect_code = 'const isDark = typeof window !== "undefined" && localStorage.getItem("theme") === "dark";'
-        remediation_code = (
-            'const [isDark, setIsDark] = useState(false);
-'
-            'const [mounted, setMounted] = useState(false);
+        remediation_code = """const [isDark, setIsDark] = useState(false);
+const [mounted, setMounted] = useState(false);
 
-'
-            'useEffect(() => {
-'
-            '  setMounted(true);
-'
-            '  setIsDark(localStorage.getItem("theme") === "dark");
-'
-            '}, []);
+useEffect(() => {
+  setMounted(true);
+  setIsDark(localStorage.getItem("theme") === "dark");
+}, []);
 
-'
-            'if (!mounted) return null; // Wait for client hydration mount'
-        )
+if (!mounted) return null; // Wait for client hydration mount"""
 
     # 3. LOW DEFECTS (-2 pts)
     elif any(k in desc for k in ["canonical", "canonical url", "duplicate content"]):
@@ -630,24 +576,15 @@ def standardize_vulnerability(v):
         impact = "+3 SEO Points · Prevents Search Indexation Splitting"
         explanation = "Without an explicit <link rel='canonical'>, search spiders index URL parameters and alternate sub-routes as duplicate content, diluting page ranking authority."
         defect_code = '<!-- Missing canonical link in document <head> -->'
-        remediation_code = (
-            '// In Next.js App Router (app/layout.tsx or page.tsx):
-'
-            'export const metadata: Metadata = {
-'
-            '  alternates: {
-'
-            '    canonical: "https://yourdomain.com/target-page",
-'
-            '  },
-'
-            '};
+        remediation_code = """// In Next.js App Router (app/layout.tsx or page.tsx):
+export const metadata: Metadata = {
+  alternates: {
+    canonical: "https://yourdomain.com/target-page",
+  },
+};
 
-'
-            '// In HTML <head>:
-'
-            '<link rel="canonical" href="https://yourdomain.com/target-page" />'
-        )
+// In HTML <head>:
+<link rel="canonical" href="https://yourdomain.com/target-page" />"""
 
     elif any(k in desc for k in ["description", "meta description", "meta name"]):
         rule_id = "seo_meta_desc"
@@ -657,22 +594,14 @@ def standardize_vulnerability(v):
         impact = "+3 SEO Points · Enhances Search Engine CTR"
         explanation = "A missing or generic meta description causes search engines to pull arbitrary body text for search snippets, lowering search visibility and click-through rates."
         defect_code = '<!-- Missing meta name="description" in <head> -->'
-        remediation_code = (
-            '// In Next.js App Router metadata:
-'
-            'export const metadata: Metadata = {
-'
-            '  title: "Official Page Title",
-'
-            '  description: "Accurate, compelling 140-160 character description of the page content for search engines.",
-'
-            '};
+        remediation_code = """// In Next.js App Router metadata:
+export const metadata: Metadata = {
+  title: "Official Page Title",
+  description: "Accurate, compelling 140-160 character description of the page content for search engines.",
+};
 
-'
-            '// In standard HTML <head>:
-'
-            '<meta name="description" content="Accurate, compelling 140-160 character description of the page content." />'
-        )
+// In standard HTML <head>:
+<meta name="description" content="Accurate, compelling 140-160 character description of the page content." />"""
 
     elif any(k in desc for k in ["incomplete link", "truncated", "http:/", "poor code hygiene", "href=\"\"", "href=\"#\""]):
         rule_id = "code_link_syntax"
@@ -682,20 +611,13 @@ def standardize_vulnerability(v):
         impact = "+2 Code Quality Points · Eliminates Dead Navigation Nodes"
         explanation = "Links with empty href attributes (href='' or href='#') prevent keyboard focus navigation and trap search crawlers in infinite redirect cycles."
         defect_code = '<a href="#">Click Here</a>'
-        remediation_code = (
-            '// If triggering an interactive action, use a semantic <button>:
-'
-            '<button type="button" onClick={handleClick} className="link-button">
-'
-            '  View Details
-'
-            '</button>
+        remediation_code = """// If triggering an interactive action, use a semantic <button>:
+<button type="button" onClick={handleClick} className="link-button">
+  View Details
+</button>
 
-'
-            '// If navigating to a real page, provide the full valid route:
-'
-            '<a href="/destination-route" className="nav-link">View Details</a>'
-        )
+// If navigating to a real page, provide the full valid route:
+<a href="/destination-route" className="nav-link">View Details</a>"""
 
     return {
         "rule_id": rule_id,
