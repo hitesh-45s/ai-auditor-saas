@@ -8,4 +8,5 @@ httpx
 beautifulsoup4
 google-genai
 playwright
-groq
+groq
+slowapi

@@ -1,18 +1,21 @@
-
-# Node & Frontend
-node_modules/
-.next/
-frontend/.env.local
-
-# Python & Backend
+# Python & Virtual Environments
 venv/
+.venv/
 __pycache__/
-backend/.env
-*.pyc
-screenshot_*.png
+*.py[cod]
+*$py.class
+*.so
 
-# OS Files
-.DS_Store
-
-#secret file
+# Environment Variables & Secrets
+.env
 .env*
+*.env
+!.env.example
+
+# Temporary Playwright Screenshots
+screenshot_*.png
+*.png
+
+# OS
+.DS_Store
+Thumbs.db

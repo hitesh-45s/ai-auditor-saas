@@ -84,6 +84,7 @@ def verify_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -
 # DATA MODELS
 class ScanRequest(BaseModel):
     url: HttpUrl
+    force_refresh: bool = False
     # user_id is removed from here; we extract it securely from the verified token above
 
 # API ENDPOINTS
@@ -97,6 +98,7 @@ def health_check():
 async def request_scan(request: Request, payload: ScanRequest, user_id: str = Depends(verify_user)):
     try:
         domain = str(payload.url)
+        force_refresh = getattr(payload, "force_refresh", False)
 
         website_response = supabase.table("websites").select("id").eq(
             "user_id", user_id
@@ -110,6 +112,36 @@ async def request_scan(request: Request, payload: ScanRequest, user_id: str = De
                 "domain_url": domain
             }).execute()
             website_id = new_website.data[0]['id']
+
+        # 5-MINUTE AUDIT CACHE (Google PageSpeed Standard)
+        if not force_refresh:
+            try:
+                recent_scans = (
+                    supabase.table("scans")
+                    .select("id, status, completed_at, audit_results(raw_data)")
+                    .eq("website_id", website_id)
+                    .eq("status", "completed")
+                    .order("completed_at", desc=True)
+                    .limit(1)
+                    .execute()
+                )
+                if recent_scans.data:
+                    latest = recent_scans.data[0]
+                    completed_at_str = latest.get("completed_at")
+                    if completed_at_str and latest.get("audit_results"):
+                        clean_time = completed_at_str.replace("Z", "+00:00")
+                        completed_time = datetime.fromisoformat(clean_time)
+                        age_seconds = (datetime.now(timezone.utc) - completed_time).total_seconds()
+                        if 0 <= age_seconds < 300: # Within 5 minutes
+                            return {
+                                "message": f"Retrieved verified audit from {round(age_seconds)}s ago.",
+                                "scan_id": latest["id"],
+                                "website_id": website_id,
+                                "cached": True,
+                                "cache_age_seconds": round(age_seconds)
+                            }
+            except Exception as cache_err:
+                print(f"Cache check pass: {cache_err}")
 
         now_iso = datetime.now(timezone.utc).isoformat()
         new_scan = supabase.table("scans").insert({

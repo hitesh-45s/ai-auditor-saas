@@ -22,14 +22,18 @@
 
 | Feature | Description |
 |---|---|
+| 🕸️ **Interactive Multi-Vector Radar** | 6-axis SVG topology comparing live site telemetry against Google Lighthouse & W3C benchmarks with pulsing vertex nodes and real-time live telemetry HUD. |
+| ⏱️ **Forensic Latency Waterfall** | DevTools-grade interactive timeline breaking down DNS/SSL Handshake, TTFB, First Contentful Paint (FCP), DOM Content Loaded, and Full Resource Load. |
+| 📦 **Payload Weight & Treemap** | Segmented distribution of JavaScript, media, CSS, and DOM markup with automated modern vs. legacy image bandwidth savings projections. |
+| 🔬 **Remediation Laboratory** | Developer workbench featuring **Side-by-Side Before/After Diffs**, exact **WCAG 2.1 AA / OWASP ASVS** standard citations, plain-English engineering directives, and one-click copy. |
+| 📊 **Isolated Multi-Vector Sub-Scores** | Granular, honest scoring isolating Performance, Accessibility, SEO, and Security vectors without misleading synthetic averages. |
 | 🤖 **Resilient Multi-Model AI Chain** | Zero-downtime 5-tier fallback engine: `gemini-2.5-flash` ➔ `llama-3.3-70b` (Groq) ➔ `gemini-3.5-flash` ➔ `gemini-2.5-flash-lite` ➔ `qwen3-32b` (Groq) with exponential backoff. |
 | ⚡ **Real Core Web Vitals Telemetry** | In-browser W3C Performance Timing extraction measuring **Full Load Time**, **First Contentful Paint (FCP)**, **Time to First Byte (TTFB)**, **DOM Content Loaded**, and **Payload Transfer Weight** with dynamic speed ratings (Fast / Average / Slow). |
 | 📸 **Issue-Specific Forensic Visuals** | Headless Playwright engine navigates directly to defect URLs, captures dedicated screenshots of discovered issues, and uploads them to Supabase Storage. |
 | 🕷️ **Async Deep Crawler** | Concurrent Python spider using `asyncio` + `httpx` crawling up to 40 pages with SSRF network protection against internal IP ranges. |
 | 🧠 **Surgical Metadata Extraction** | Extracts document lang, canonical URLs, meta tags, heading hierarchies, images, and interactive elements without token waste. |
-| 📜 **Audit Portfolio & Scan History** | Persistent scan history dashboard sorted newest-first with metrics overview (Total Audits, Average Score, Monitored Domains) and one-click historical report reloading. |
+| 📜 **Audit Portfolio & Scan History** | Persistent scan history dashboard sorted newest-first with metrics overview (Total Audits, Monitored Domains) and one-click historical report reloading. |
 | 📄 **One-Click PDF Export** | Clean print-optimized layout allowing instant PDF export of executive summaries, diagnostics, and vulnerability matrices. |
-| 🔧 **Framework-Aware Remediation** | Automatically detects site stack (React, Next.js, Vue, WordPress/PHP, plain HTML) and outputs drop-in code fixes with context anchors (`// ... existing code ...`). |
 | ⚖️ **Calibrated Scoring Rubric** | Fair enterprise scoring model: deductions applied once per distinct defect pattern (-10 High, -4 Medium, -1 Low) with a calibrated 20-point minimum floor. |
 
 ---
@@ -101,8 +105,17 @@ cd ai-auditor-saas
 
 ### 2. Configure Environment Variables
 
-Create `.env` in the root project directory:
+Copy the provided root `.env.example` template to `.env`:
 
+```bash
+# On Linux/macOS
+cp .env.example .env
+
+# On Windows (PowerShell)
+Copy-Item .env.example .env
+```
+
+Fill in your API credentials:
 ```env
 # Supabase
 SUPABASE_URL="https://your-project.supabase.co"
@@ -122,7 +135,15 @@ GROQ_API_KEY="your-groq-api-key"
 NEXT_PUBLIC_API_URL="http://localhost:8000"
 ```
 
-Create `frontend/.env.local`:
+Next, configure the frontend by copying `frontend/.env.example` to `frontend/.env.local`:
+
+```bash
+# On Linux/macOS
+cp frontend/.env.example frontend/.env.local
+
+# On Windows (PowerShell)
+Copy-Item frontend/.env.example frontend/.env.local
+```
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL="https://your-project.supabase.co"
@@ -134,7 +155,7 @@ NEXT_PUBLIC_API_URL="http://localhost:8000"
 
 ### 3. Initialize Database Schema
 
-Run the SQL migration script located at [`backend/schema.sql`](backend/schema.sql) in your **Supabase SQL Editor**.
+Run the SQL migration script located at [`infrastructure/schema.sql`](infrastructure/schema.sql) in your **Supabase SQL Editor**.
 
 Next, create a public storage bucket for screenshots:
 1. Go to **Supabase Dashboard** ➔ **Storage**

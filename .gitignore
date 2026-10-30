@@ -1,6 +1,75 @@
-# Root-level secrets
+# ==============================================================================
+# SECRETS & ENVIRONMENT VARIABLES (NEVER COMMIT)
+# ==============================================================================
 .env
+.env*
+*.env
+!.env.example
+!.env.template
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+frontend/.env.local
+frontend/.env*.local
+backend/.env
 
-# System files
+# ==============================================================================
+# PYTHON & BACKEND ARTIFACTS
+# ==============================================================================
+__pycache__/
+backend/__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+backend/venv/
+venv/
+ENV/
+env/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+
+# Local Temporary Playwright Screenshots
+screenshot_*.png
+backend/screenshot_*.png
+
+# ==============================================================================
+# NODE & NEXT.JS FRONTEND ARTIFACTS
+# ==============================================================================
+node_modules/
+frontend/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Next.js Build Output & Cache
+.next/
+frontend/.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+frontend/*.tsbuildinfo
+next-env.d.ts
+frontend/next-env.d.ts
+
+# ==============================================================================
+# OPERATING SYSTEM & EDITOR FILES
+# ==============================================================================
 .DS_Store
 Thumbs.db
+*.lnk
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ==============================================================================
+# LOCAL BENCHMARK PDFS & TEST DUMPS
+# ==============================================================================
+*.pdf
+scratch/
