@@ -227,9 +227,35 @@ flowchart TD
 
 ---
 
-## 📊 Calibrated Scoring Rubric
+## 🔬 Interactive Diagnostic Suite & Remediation Lab
 
-To prevent false deductions on enterprise sites (such as Stripe or Vercel), defects are penalized **once per structural pattern** rather than multiplied across every crawled page:
+### 1. Multi-Vector Radar & Telemetry Topology
+- **Organic 6-Axis SVG Radar:** Compares live domain signals directly against Google Lighthouse and W3C industry benchmarks (90/100 standard).
+- **Pulsing Vertex Interactivity:** Hovering or selecting any axis highlights that node with a pulsing glow ring and updates the live telemetry HUD with real-time metrics (TTFB, FCP, WCAG AA compliance status, modern image ratios, and security headers count).
+- **Forensic Network Latency Waterfall:** Chronological DevTools-grade horizontal timeline mapping DNS & TLS Handshake, Time to First Byte (TTFB), First Contentful Paint (FCP), DOM Content Loaded (DCL), and full window load.
+- **Payload Architecture & Treemap:** Visual distribution of JavaScript bundles, images, CSS, and DOM structure, featuring automated modern format bandwidth savings calculations.
+
+### 2. Remediation Laboratory & Split Diff Workbench
+- **Side-by-Side Diff View:** Side-by-side comparison displaying observed defective code in a red non-compliant panel alongside production-ready remediation patches in a green panel.
+- **Regulatory Standards Grounding:** Defect patches are grounded in official specifications: `WCAG 2.1 AA § 1.1.1 (Non-Text Content)`, `OWASP ASVS § 5.3 (Output Encoding)`, `W3C HTML5 § 3.2.5`, and `Google Search Central`.
+- **Engineering Directives:** Plain-English explanations detailing the root cause, real-world user impact, and architectural rationale for the fix.
+- **One-Click Copy:** Direct clipboard copy with instant visual confirmation badge.
+
+---
+
+## 📊 Calibrated Scoring Rubric & 4-Vector Mathematics
+
+The platform avoids synthetic overall score distortion by isolating 4 independent vector scores:
+
+```
+┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│   Performance   │  │  Accessibility  │  │   Search SEO    │  │ Security Posture│
+│ (Core Web Vitals│  │ (WCAG 2.1 Level │  │(Meta, Canonical,│  │(TLS 1.3, HSTS,  │
+│  & FCP Latency) │  │   A / AA Rules) │  │  Social Schema) │  │ CSP & Headers)  │
+└─────────────────┘  └─────────────────┘  └─────────────────┘  └─────────────────┘
+```
+
+Defects are penalized **once per structural pattern** rather than multiplied across every crawled page to prevent false deductions on large sites:
 
 | Severity | Deduction | Qualification |
 |---|---|---|
@@ -237,7 +263,7 @@ To prevent false deductions on enterprise sites (such as Stripe or Vercel), defe
 | 🟡 **Medium** | **-3 pts** | Minor accessibility flaws, hydration warnings, missing descriptive image attributes, suboptimal layout shifts |
 | 🔵 **Low** | **-1 pt** | Minor code hygiene, missing non-critical meta tags, heading order preference |
 
-*Starting Score: **100** · Floor Minimum: **20***
+*Starting Score: **100** · Minimum Calibrated Floor: **20***
 
 ---
 
