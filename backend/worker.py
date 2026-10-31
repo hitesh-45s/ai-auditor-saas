@@ -65,7 +65,7 @@ AI_MAX_RETRIES = 5 # The Heavy-Duty Battering Ram
 
 
 # Multi-Model Fallback Chain (provider, model) — tried in exact order listed
-# gemini-2.5-flash → llama-3.3-70b → gemini-3.5-flash → gemini-2.5-flash-lite → qwen3-32b
+# gemini-3.5-flash → llama-3.3-70b → gemini-2.5-flash → gemini-2.5-flash-lite → qwen3-32b
 AI_CHAIN = [
     ("gemini", "gemini-3.5-flash"),
     ("groq",   "llama-3.3-70b-versatile"),
