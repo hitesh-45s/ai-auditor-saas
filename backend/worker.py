@@ -65,22 +65,47 @@ AI_MAX_RETRIES = 5 # The Heavy-Duty Battering Ram
 
 
 # Multi-Model Fallback Chain (provider, model) — tried in exact order listed
-# gemini-3.5-flash → llama-3.3-70b → gemini-2.5-flash → gemini-2.5-flash-lite → qwen3-32b
+# gemini-3.5-flash → openai/gpt-oss-120b (Groq) → gemini-2.5-flash → gemini-2.5-flash-lite → qwen/qwen3.8-27b (Groq)
 AI_CHAIN = [
     ("gemini", "gemini-3.5-flash"),
-    ("groq",   "llama-3.3-70b-versatile"),
+    ("groq",   "openai/gpt-oss-120b"),
     ("gemini", "gemini-2.5-flash"),
     ("gemini", "gemini-2.5-flash-lite"),
-    ("groq",   "qwen/qwen3-32b"),
+    ("groq",   "qwen/qwen3.8-27b"),
 ]
 
 print("🕷️ Bulletproof Forensic Spider V2 started. Staring at the queue...")
 if groq_client:
-    print("✅ Groq Backup AI is ARMED and ready (llama-3.3-70b).")
+    print("✅ Groq Backup AI is ARMED and ready.")
 else:
     print("⚠️ Groq Backup AI not configured (add GROQ_API_KEY to .env to enable).")
 
 _SAFE_HOST_CACHE = {}
+
+def is_retryable_ai_error(ai_error: Exception) -> tuple[bool, str]:
+    """
+    Distinguishes transient errors (rate limit 429, 503 unavailable, 500 server error,
+    502/504 gateway, timeouts, connection resets, partial json) from permanent non-retryable
+    failures (404 model not found, 401 invalid api key, unrecoverable bad requests).
+    """
+    err_str = str(ai_error).upper()
+    err_type = type(ai_error).__name__.upper()
+    combined = f"{err_type}: {err_str}"
+
+    # Explicit permanent non-retryable failures:
+    non_retryable_keywords = [
+        "404", "NOT_FOUND", "MODEL_NOT_FOUND",
+        "401", "UNAUTHORIZED", "API_KEY_INVALID", "INVALID_API_KEY",
+        "API KEY NOT VALID", "FORBIDDEN: API KEY",
+        "CONTEXT_WINDOW_EXCEEDED", "MAXIMUM CONTEXT LENGTH", "PROMPT_TOO_LONG"
+    ]
+    for non_ret in non_retryable_keywords:
+        if non_ret in combined:
+            return False, f"Permanent error ({non_ret})"
+
+    # All other errors during LLM inference are considered transient and eligible for retry
+    return True, f"Transient issue ({type(ai_error).__name__})"
+
 
 def normalize_target_url(url: str) -> str:
     """Normalizes user-supplied URLs, fixing single-slash protocols and ensuring a proper scheme."""
@@ -1216,6 +1241,7 @@ def process_queue():
                     print(f"🤖 Attempting AI analysis with [{provider.upper()}] model: {model_name}")
 
                     for attempt in range(AI_MAX_RETRIES):
+                        print(f"🤖 [{provider.upper()}] Attempt {attempt + 1}/{AI_MAX_RETRIES} for model: {model_name}...")
                         try:
                             if provider == "gemini":
                                 ai_response = ai_client.models.generate_content(
@@ -1226,6 +1252,8 @@ def process_queue():
                                         temperature=0.0
                                     )
                                 )
+                                if not ai_response or not getattr(ai_response, "text", None):
+                                    raise ValueError(f"Empty or null response text returned from Gemini ({model_name})")
                                 ai_data = json.loads(ai_response.text)
                                 ai_data["ai_provider"] = f"Gemini ({model_name})"
 
@@ -1244,8 +1272,13 @@ Website Data:
                                     temperature=0.0,
                                     response_format={"type": "json_object"},
                                 )
+                                if not groq_response.choices or not groq_response.choices[0].message.content:
+                                    raise ValueError(f"Empty response returned from Groq ({model_name})")
                                 ai_data = json.loads(groq_response.choices[0].message.content)
                                 ai_data["ai_provider"] = f"Groq ({model_name})"
+
+                            if not isinstance(ai_data, dict) or "global_score" not in ai_data:
+                                raise ValueError("AI response did not match expected JSON dictionary format")
 
                             # Inject scanned URLs into payload for the React UI
                             ai_data["scanned_urls"] = visited_urls
@@ -1253,19 +1286,23 @@ Website Data:
                             break  # Success — stop retrying this model
 
                         except Exception as ai_error:
-                            error_str = str(ai_error).upper()
-                            retryable = any(err in error_str for err in [
-                                "503", "429", "UNAVAILABLE", "RESOURCE_EXHAUSTED",
-                                "10053", "CONNECTION", "RATE_LIMIT", "OVERLOADED"
-                            ])
+                            retryable, reason = is_retryable_ai_error(ai_error)
+                            err_msg = str(ai_error).strip()
+                            if len(err_msg) > 95:
+                                err_msg = err_msg[:92] + "..."
+
                             if retryable and attempt < AI_MAX_RETRIES - 1:
-                                sleep_time = 10 * (2 ** attempt)
-                                print(f"   ⚠️ [{provider.upper()}] busy/connection issue. Retrying in {sleep_time}s... (Attempt {attempt + 2}/{AI_MAX_RETRIES})")
+                                sleep_time = min(10 * (2 ** attempt), 30)
+                                print(f"   ⚠️ [{provider.upper()}] Attempt {attempt + 1}/{AI_MAX_RETRIES} failed ({reason}: {err_msg}). Retrying in {sleep_time}s... (Next: Attempt {attempt + 2}/{AI_MAX_RETRIES})")
                                 time.sleep(sleep_time)
-                            else:
+                            elif not retryable:
+                                print(f"   🚫 [{provider.upper()}] Attempt {attempt + 1}/{AI_MAX_RETRIES} encountered permanent error ({reason}: {err_msg}). Skipping to next model in chain...")
                                 ai_exception = ai_error
                                 break  # Non-retryable — move to next model in chain
-
+                            else:
+                                print(f"   ❌ [{provider.upper()}] Attempt {attempt + 1}/{AI_MAX_RETRIES} failed ({reason}: {err_msg}). All {AI_MAX_RETRIES} attempts exhausted.")
+                                ai_exception = ai_error
+                                break
                     if success:
                         print(f"✅ [{provider.upper()}] {model_name} succeeded!")
                         break  # Got data — stop the chain
