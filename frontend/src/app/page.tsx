@@ -218,10 +218,13 @@ export default function App() {
   // --- SCANNER POLLING LOGIC ---
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | undefined;
+    let consecutiveErrors = 0;
+    const MAX_CONSECUTIVE_ERRORS = 6; // 18 seconds of retry tolerance for network jitter / cold starts
+
     if (scanId && scanStatus !== "completed" && scanStatus !== "failed" && session) {
       interval = setInterval(async () => {
         try {
-          // NEW: Send the JWT Token in the Authorization header
+          // Send the JWT Token in the Authorization header
           const response = await fetch(`${API_BASE_URL}/api/scans/${scanId}`, {
              headers: {
                 "Authorization": `Bearer ${session.access_token}`
@@ -229,10 +232,11 @@ export default function App() {
           });
           
           if (response.ok) {
+            consecutiveErrors = 0; // Reset retry counter on successful poll
             const data = await response.json();
             setScanStatus(data.status);
 
-            // NEW: Capture the screenshot URL if it exists
+            // Capture the screenshot URL if it exists
             if (data.screenshot_url) {
                 setScreenshotUrl(data.screenshot_url);
             }
@@ -248,14 +252,23 @@ export default function App() {
               const failureReason = data.audit_results?.[0]?.raw_data?.error || data.error_message || "The target website could not be reached, failed SSL handshake, or does not exist.";
               setScanError(failureReason);
             }
+          } else if (response.status >= 500) {
+            consecutiveErrors++;
+            if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+              setIsScanning(false);
+              setScanError(`Audit engine temporarily unavailable (HTTP ${response.status}). Please try again.`);
+            }
           } else {
             setIsScanning(false);
             setScanError(`Could not fetch scan status (HTTP ${response.status}).`);
           }
         } catch (error) {
-          console.error("Polling error:", error);
-          setIsScanning(false);
-          setScanError("Lost connection to the audit engine while polling for results.");
+          console.warn("Polling transient network glitch:", error);
+          consecutiveErrors++;
+          if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+            setIsScanning(false);
+            setScanError("Lost connection to the audit engine after multiple retries. Please check your network or try refreshing.");
+          }
         }
       }, 3000);
     }
@@ -395,7 +408,7 @@ export default function App() {
       setScanHistory(data);
     } catch (err: any) {
       console.error("Failed to load history:", err);
-      setHistoryError(err.message || "Failed to load scan history.");
+      setHistoryError(err.message === "Failed to fetch" ? "Audit engine is waking up... Click Refresh in a few seconds." : (err.message || "Failed to load scan history."));
     } finally {
       setHistoryLoading(false);
     }

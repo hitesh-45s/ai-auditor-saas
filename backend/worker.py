@@ -82,6 +82,15 @@ else:
 
 _SAFE_HOST_CACHE = {}
 
+# Linux Container (Docker) Low-Memory Flags for Playwright Chromium
+CHROMIUM_ARGS = [
+    "--no-sandbox",
+    "--disable-setuid-sandbox",
+    "--disable-dev-shm-usage",
+    "--disable-gpu",
+    "--disable-extensions",
+]
+
 def is_retryable_ai_error(ai_error: Exception) -> tuple[bool, str]:
     """
     Distinguishes transient errors (rate limit 429, 503 unavailable, 500 server error,
@@ -808,7 +817,7 @@ def fetch_page_with_playwright(url, timeout_ms=35000):
     """Headless Chromium rescue for pages that block raw HTTP, require JavaScript, or time out."""
     try:
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
+            browser = p.chromium.launch(headless=True, args=CHROMIUM_ARGS)
             page = browser.new_page(
                 user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
             )
@@ -1325,7 +1334,7 @@ Website Data:
 
                 try:
                     with sync_playwright() as p:
-                        browser = p.chromium.launch(headless=True)
+                        browser = p.chromium.launch(headless=True, args=CHROMIUM_ARGS)
                         page = browser.new_page()
 
                         # 1. Real Core Web Vitals - Lighthouse Desktop Standard (CDP Network Throttle)
