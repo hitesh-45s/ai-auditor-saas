@@ -5,6 +5,7 @@ Forces Gemini to pinpoint exact URLs and bugs in a structured Vulnerability Arra
 Includes Multi-Model Fallback, Groq Backup AI, Issue-Specific Screenshots, Core Web Vitals, and Enterprise Exponential Backoff.
 """
 import os
+import gc
 import sys
 import time
 
@@ -59,7 +60,7 @@ groq_client = Groq(api_key=GROQ_KEY) if GROQ_KEY else None
 # ==========================================
 # THE 0.1% CONFIGURATION (Optimized for Free-Tier Stability)
 # ==========================================
-MAX_PAGES_TO_CRAWL = 40 
+MAX_PAGES_TO_CRAWL = int(os.getenv("MAX_PAGES_TO_CRAWL", 25)) 
 THROTTLE_SLEEP_SECONDS = 1.0
 AI_MAX_RETRIES = 5 # The Heavy-Duty Battering Ram
 
@@ -1071,6 +1072,9 @@ async def async_deep_crawl(target_url, max_pages):
         if u in visited_pages_data:
             aggregated_website_data += f"--- PAGE: {u} ---\n" + visited_pages_data[u] + "\n\n"
 
+    visited_pages_data.clear()
+    gc.collect()
+
     crawl_stats = {
         "total_images_found": total_images_found,
         "total_links_found": total_links_found,
@@ -1405,7 +1409,13 @@ Website Data:
                                 "speed_rating": "Slow"
                             }
 
-                        # 2. Issue-Specific Screenshots for Vulnerabilities
+                        # Close vitals page to free memory before taking screenshots
+                        try:
+                            page.close()
+                        except Exception:
+                            pass
+
+                        # 2. Issue-Specific Screenshots for Vulnerabilities (isolated pages to prevent Chromium heap buildup)
                         for index, vuln in enumerate(critical_vulns):
                             vuln_url = vuln.get("url")
                             if not vuln_url:
@@ -1416,13 +1426,15 @@ Website Data:
                                 vuln["screenshot_url"] = screenshot_cache[vuln_url]
                                 continue
 
-                            print(f"   📸 Screenshotting vulnerability at: {vuln_url}")
+                            print(f"   ?? Screenshotting vulnerability at: {vuln_url}")
                             screenshot_filename = f"vuln_{scan_id}_{index}.png"
 
+                            shot_page = None
                             try:
-                                page.goto(vuln_url, wait_until="domcontentloaded", timeout=45000)
-                                page.wait_for_timeout(2500)
-                                page.screenshot(path=screenshot_filename, full_page=False)
+                                shot_page = browser.new_page()
+                                shot_page.goto(vuln_url, wait_until="domcontentloaded", timeout=30000)
+                                shot_page.wait_for_timeout(1500)
+                                shot_page.screenshot(path=screenshot_filename, full_page=False)
 
                                 # Upload to Supabase Storage with upsert to avoid conflicts
                                 with open(screenshot_filename, "rb") as f:
@@ -1437,13 +1449,19 @@ Website Data:
                                 screenshot_cache[vuln_url] = public_url
 
                             except Exception as e:
-                                print(f"   ⚠️ Screenshot failed for {vuln_url}: {e}")
+                                print(f"   ?? Screenshot failed for {vuln_url}: {e}")
                             finally:
+                                if shot_page:
+                                    try:
+                                        shot_page.close()
+                                    except Exception:
+                                        pass
                                 # Clean up local image
                                 if os.path.exists(screenshot_filename):
                                     os.remove(screenshot_filename)
 
                         browser.close()
+                        gc.collect()
                 except Exception as e:
                     print(f"   ⚠️ Playwright initialization failed: {e}")
 
